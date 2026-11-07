@@ -3,7 +3,8 @@
 pipeline {
     agent any
     
-    triggers {      
+    triggers {
+        // trigger the pipeline on GitHub push events      
         githubPush()
     }
     
