@@ -1,22 +1,34 @@
 def call() {
     echo "Starting prepareEnv: Extracting SCM variables..."
-    
-    // default details in case of manual running
+
+    // default values
     def committerName = "Unknown/Manual Trigger"
     def commitId = "N/A"
-    
-    // get details from currentBuild 
-    if (currentBuild.changeSets.size() > 0) {
-        def changeSet = currentBuild.changeSets[0]
-        if (!changeSet.isEmpty()) {
-            def lastCommit = changeSet.getItems()[0]
-            committerName = lastCommit.getAuthor().getFullName()
-            commitId = lastCommit.getCommitId().take(7) // 7 תווים ראשונים של ה-Hash
+    def commitMsg = "N/A"
+
+    // collect all entries from all change sets 
+    def entries = []
+    for (cs in currentBuild.changeSets) {
+        for (item in cs.items) {
+            entries << item
         }
-    }     
-    echo "SCM Trigger detected. Committer: ${committerName}, Commit ID: ${commitId}"
-    
-    // define vars into the pipeline environment 
+    }
+
+    if (entries) {
+        // pick the most recent commit by timestamp in case of multiple commits in a single push
+        def last = entries.max { it.timestamp }
+        committerName = last.author.fullName
+        commitId = last.commitId.take(7)
+        commitMsg = last.msg
+    }
+
+    // trigger cause (push / manual / etc.)
+    def cause = currentBuild.getBuildCauses()?.collect { it.shortDescription }?.join(', ') ?: 'unknown'
+
+    echo "SCM Trigger detected. Committer: ${committerName}, Commit ID: ${commitId}, Cause: ${cause}"
+
     env.SCM_COMMITTER = committerName
     env.SCM_COMMIT_ID = commitId
+    env.SCM_COMMIT_MSG = commitMsg
+    env.BUILD_TRIGGER_CAUSE = cause
 }
