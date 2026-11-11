@@ -1,0 +1,38 @@
+---
+- name: Deploy Dockerized Hello World Counter
+  hosts: all
+  become: true
+  vars:
+    app_dir: "/opt/web_counter_app"
+    host_port: "8080"
+
+  tasks:
+    - name: Ensure target application directory exists
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Copy static application files (Python & Docker)
+      ansible.builtin.copy:
+        src: "files/{{ item }}"
+        dest: "{{ app_dir }}/{{ item }}"
+        mode: '0644'
+      loop:
+        - app.py
+        - requirements.txt
+        - Dockerfile
+
+    - name: Template docker-compose file with dynamic variables
+      ansible.builtin.template:
+        src: templates/docker-compose.yml.j2
+        dest: "{{ app_dir }}/docker-compose.yml"
+        mode: '0644'
+
+    - name: Stand up the Docker Compose stack
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_dir }}"
+        state: present
+        build: always
