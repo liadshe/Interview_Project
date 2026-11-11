@@ -26,18 +26,22 @@ pipeline {
         
         stage('Build Artifact') {
             steps {
-                echo "Building artifact for commit ${env.SCM_COMMIT_ID} triggered by ${env.SCM_COMMITTER}"
-                
-                sh 'echo "Simulating build process..."'
-                sh 'mkdir -p build-output'
-                sh 'echo "dummy binary data" > build-output/app.bin'
+                sh '''
+                    rm -rf dist && mkdir dist
+                    cp -r 2-ansible-docker/files 2-ansible-docker/templates dist/
+                    printf '{"commit":"%s","committer":"%s","branch":"%s","build":"%s"}\n' \
+                    "$SCM_COMMIT_ID" "$SCM_COMMITTER" "$SCM_BRANCH" "$BUILD_NUMBER" > dist/build-info.json
+                '''
             }
         }
         
         stage('Pack Artifact') {
             steps {
-                echo "Packing the built artifact to ${ARTIFACT_NAME}..."
-                sh "tar -czvf ${ARTIFACT_NAME} ./build-output"
+                script {
+                    env.ARTIFACT_NAME = "${env.APP_NAME}-${env.BUILD_NUMBER}-${env.SCM_COMMIT_ID}.tar.gz"
+                }
+                sh 'tar -czf "$ARTIFACT_NAME" -C dist .'
+                archiveArtifacts artifacts: '*.tar.gz', fingerprint: true
             }
         }
         
