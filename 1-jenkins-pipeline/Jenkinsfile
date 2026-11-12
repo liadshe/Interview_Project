@@ -10,8 +10,7 @@ pipeline {
     
     environment {
         APP_NAME = "interview-application"
-        ARTIFACT_NAME = "${APP_NAME}-${env.BUILD_NUMBER}.tar.gz"
-        REPO_URL = "http://192.168.7.29:8081/repository/my-repo"
+        ARTIFACTORY_URL = "http://192.168.7.29:8081/artifactory/generic-local"
     }
     
     stages {
@@ -29,8 +28,8 @@ pipeline {
                 sh '''
                     rm -rf dist && mkdir dist
                     cp -r 2-ansible-docker/files 2-ansible-docker/templates dist/
-                    printf '{"commit":"%s","committer":"%s","branch":"%s","build":"%s"}\n' \
-                    "$SCM_COMMIT_ID" "$SCM_COMMITTER" "$SCM_BRANCH" "$BUILD_NUMBER" > dist/build-info.json
+                    printf '{"commit":"%s","committer":"%s","build":"%s"}\n' \
+                    "$SCM_COMMIT_ID" "$SCM_COMMITTER" "$BUILD_NUMBER" > dist/build-info.json
                 '''
             }
         }
@@ -47,14 +46,16 @@ pipeline {
         
         stage('Upload to Repo') {
             steps {
-                echo "Uploading ${ARTIFACT_NAME} to artifact repository..."
-                withCredentials([usernamePassword(credentialsId: 'artifactory-creds', passwordVariable: 'REPO_PASS', usernameVariable: 'REPO_USER')]) {
-                    sh """
-                        curl -u ${REPO_USER}:${REPO_PASS} \
-                             -X PUT \
-                             -T ${ARTIFACT_NAME} \
-                             ${REPO_URL}/${ARTIFACT_NAME}
-                    """
+                 withCredentials([usernamePassword(
+                        credentialsId: 'artifactory-creds',
+                        usernameVariable: 'REPO_USER',
+                        passwordVariable: 'REPO_PASS')]) {
+                    sh '''
+                        printf 'user = "%s:%s"\n' "$REPO_USER" "$REPO_PASS" | \
+                          curl --fail --silent --show-error -K - \
+                               -T "$ARTIFACT_NAME" \
+                               "$ARTIFACTORY_URL/$ARTIFACT_NAME"
+                    '''
                 }
             }
         }
@@ -65,6 +66,7 @@ pipeline {
             echo "Cleaning up workspace..."
             cleanWs() 
         }
+        failure { echo "FAILED. Last committer: ${env.SCM_COMMITTER}" }
         success {
             echo "Pipeline completed successfully!"
         }
