@@ -2,8 +2,8 @@ def call() {
     echo "Starting prepareEnv: Extracting SCM variables..."
 
     // default values
-    def committerName = "Unknown/Manual Trigger"
-    def commitId = "N/A"
+    def committerName = "Unknown"
+    def commitId = env.GIT_COMMIT ? env.GIT_COMMIT.take(7) : "manual"
     def commitMsg = "N/A"
 
     // collect all entries from all change sets 
