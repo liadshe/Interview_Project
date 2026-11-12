@@ -1,6 +1,6 @@
 ---
 - name: Deploy Dockerized Hello World Counter
-  hosts: all
+  hosts: webservers
   become: true
   vars:
     app_dir: "/opt/web_counter_app"
